@@ -124,16 +124,6 @@ let t_canonicalize_maintains_schemes () =
            |> Uri.to_string ))
 
 
-let t_bad_ssl_cert _ =
-  check_error_contains
-    "should get bad_ssl"
-    (exec_ast
-       (fn
-          "HttpClient::get"
-          [str "https://self-signed.badssl.com"; record []; record []; record []]))
-    "Internal HTTP-stack exception: SSL peer certificate or SSH remote key was not OK"
-
-
 let t_sanitize_uri_path_with_repeated_slashes () =
   AT.check
     AT.string
@@ -525,7 +515,6 @@ let t_is_service_name_valid () =
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
-  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
   ; ( "authenticate_then_handle sets status codes and cookies correctly "
     , `Quick
     , t_authenticate_then_handle_code_and_cookie )

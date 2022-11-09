@@ -14,8 +14,6 @@ sudo pkill -f server.exe || true
 pkill -f queue_worker.exe || true
 pkill -f cron_checker.exe || true
 
-./scripts/run-httptunnel
-
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
