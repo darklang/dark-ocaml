@@ -9,10 +9,6 @@
   // Set *default* container specific settings.json values on container create.
   "settings": {
     "terminal.integrated.defaultProfile.linux": "bash",
-    "FSharp.dotNetRoot": "/usr/share/dotnet",
-    "FSharp.useSdkScripts": true,
-    "FSharp.workspaceModePeekDeepLevel": 5,
-    "FSharp.workspacePath": "/home/dark/app/fsharp-backend/fsdark.sln",
     "remote.containers.cacheVolume": true,
     "remote.containers.workspaceMountConsistency": "delegated",
     "editor.tabSize": 2,
@@ -22,13 +18,10 @@
 
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
-    "ionide.ionide-fsharp@5.10.1",
     "shuumatsu.vscode-ocamlformat",
-    "esbenp.prettier-vscode",
     "ms-python.python",
     "ms-azuretools.vscode-docker",
     "editorconfig.editorconfig",
-    "chenglou92.rescript-vscode@1.1.3"
   ],
 
   /////////////////////////////////////////////////
@@ -38,7 +31,7 @@
 
   // Ports are loaded in the build process
   "forwardPorts": [
-    8000, 9000, 9001, 9002, 10011, 10012, 10030, 11001, 11002, 12002, 13002
+    8000
   ],
 
   "containerEnv": {
@@ -51,7 +44,7 @@
     "--dns",
     "8.8.4.4",
     "--hostname",
-    "dark-dev",
+    "dark-ocaml-dev",
     "--env-file",
     "config/dev",
     "--env",
@@ -61,7 +54,7 @@
     "--security-opt",
     "seccomp=unconfined",
     "--label",
-    "dark-dev-container",
+    "dark-ocaml-dev-container",
     "--workdir",
     "/home/dark/app"
   ],
@@ -86,22 +79,18 @@
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
     // Build directories
-    "type=volume,src=dark_build,dst=/home/dark/app/_build",
-    "type=volume,src=dark_dotesy,dst=/home/dark/.esy",
-    "type=volume,src=dark_esy,dst=/home/dark/app/_esy",
-    "type=volume,src=dark_fsharp_build,dst=/home/dark/app/fsharp-backend/Build",
-    "type=volume,src=dark_lib,dst=/home/dark/app/lib",
-    "type=volume,src=dark_node_modules,dst=/home/dark/app/node_modules",
-    "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
+    "type=volume,src=dark_ocaml_build,dst=/home/dark/app/_build",
+    "type=volume,src=dark_ocaml_dotesy,dst=/home/dark/.esy",
+    "type=volume,src=dark_ocaml_esy,dst=/home/dark/app/_esy",
 
     // Postgres
-    "type=volume,src=pgconf,dst=/etc/postgresql",
-    "type=volume,src=pglogs,dst=/var/log/postgresql",
-    "type=volume,src=pgdata,dst=/var/lib/postgresql",
+    "type=volume,src=ocaml_pgconf,dst=/etc/postgresql",
+    "type=volume,src=ocaml_pglogs,dst=/var/log/postgresql",
+    "type=volume,src=ocaml_pgdata,dst=/var/lib/postgresql",
 
     // VSCode extensions
-    "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
-    "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
+    "type=volume,src=darklang-dark-ocaml-extension-volume,dst=/home/dark/.vscode-server/extensions",
+    "type=volume,src=darklang-dark-ocaml-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
   ],
 
   // See https://aka.ms/vscode-remote/containers/non-root.
