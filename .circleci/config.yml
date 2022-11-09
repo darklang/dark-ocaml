@@ -144,7 +144,8 @@ commands:
           command: |
             scripts/build/_generate-etags
             cat backend/static/etags.json
-            scripts/linting/_check-etags
+            # dont bother to check them
+            # scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
 
 
