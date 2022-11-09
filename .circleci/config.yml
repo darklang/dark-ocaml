@@ -216,6 +216,7 @@ jobs:
             - v9-backend-{{ checksum "esy.json" }}
             - v9-backend
       - show-large-files-and-directories
+      - run: touch backend/static/etags.json
       - run: scripts/build/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
