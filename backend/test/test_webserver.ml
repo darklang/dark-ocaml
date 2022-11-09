@@ -53,7 +53,7 @@ let t_route_host () =
     |> List.map ~f:CRequest.make
     |> List.map ~f:route_host
     |> List.map ~f:(function
-           | None | Some Static | Some Admin ->
+           | None | Some Admin ->
                "failure"
            | Some (Canvas canvas) ->
                canvas) )

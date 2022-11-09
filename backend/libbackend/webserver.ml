@@ -146,7 +146,6 @@ let respond
 
 type host_route =
   | Canvas of string
-  | Static
   | Admin
 
 (* NB: canvas in the DB is a string, not a uuid, because we do routing by canvas
@@ -1975,33 +1974,6 @@ let admin_handler
 (* The server *)
 (* -------------------------------------------- *)
 
-let static_etag_for =
-  (* Read the etags.json JSON document here so that it reads
-     at load-time, not at each call-time.
-
-     The server gets restarted after we get new etags, so we
-     don't need to worry about updates here. *)
-  let etags_json =
-    File.readfile ~root:Config.Webroot "etags.json" |> Yojson.Basic.from_string
-  in
-  fun uri ->
-    try
-      etags_json
-      (* Get the JSON field that corresponds to the filename,
-         stripped of the leftmost /. *)
-      |> Yojson.Basic.Util.member
-           (uri |> Uri.path |> String.lstrip ~drop:(( = ) '/'))
-      |> Yojson.Basic.Util.to_string
-      |> fun x -> [("etag", x)]
-    with e -> []
-
-
-let static_handler uri =
-  let fname = S.resolve_file ~docroot:(Config.dir Config.Webroot) ~uri in
-  S.respond_file
-    ~headers:(Header.of_list (cors :: static_etag_for uri))
-    ~fname
-    ()
 
 
 let route_host req =
@@ -2012,11 +1984,6 @@ let route_host req =
     |> Option.value ~default:""
     |> fun h -> String.split h '.'
   with
-  | ["static"; "darklang"; "localhost"]
-  | ["static"; "darklang"; "lvh"; "me"]
-  | ["static"; "darklang"; "com"]
-  | [_; "ngrok"; "io"] ->
-      Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
   (* Route *.darkcustomdomain.com same as we do *.builtwithdark.com - it's
@@ -2306,8 +2273,6 @@ let callback
           ( match route_host req with
           | Some (Canvas canvas) ->
               canvas_handler ~execution_id ~canvas ~ip ~uri ~body parent req
-          | Some Static ->
-              static_handler uri
           | Some Admin ->
             ( try
                 authenticate_then_handle
