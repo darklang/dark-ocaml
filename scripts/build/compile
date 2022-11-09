@@ -385,32 +385,12 @@ def execute(should):
     if not esy_install(): success = False
     should.backend_build |= success
 
-  if should.fsharp_tool_restore:
-    if not fsharp_tool_restore(): success = False
-    should.fsharp_paket_restore |= success
-    should.fsharp_backend_full_build |= success
-
-  if should.fsharp_paket_restore:
-    if not fsharp_paket_restore(): success = False
-    should.fsharp_backend_full_build |= success
-
-  if should.fsharp_paket_install:
-    if not fsharp_paket_install(): success = False
-    should.fsharp_backend_full_build |= success
-
   if should.backend_build:
     if not backend_build(): success = False
     should.generate_etags |= success
     should.backend_test |= success
     should.reload_server |= success
     should.reload_browser |= success
-
-  if should.fsharp_backend_full_build:
-    should.fsharp_backend_quick_build = False  # no need to do both
-    if not fsharp_backend_full_build(): success = False
-    should.copy_fsharp_static |= success
-    should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
 
   if should.circleci_validate:
     if not circleci_validate(): success = False
@@ -421,43 +401,11 @@ def execute(should):
   if should.mypy_shipit:
     if not mypy_shipit(): success = False
 
-  if should.fsharp_backend_quick_build:
-    if not fsharp_backend_quick_build(): success = False
-    should.copy_fsharp_static |= success
-    should.fsharp_backend_test |= success
-    should.reload_fsharp_server |= success
-
-  if should.npm_install:
-    if not npm_install(): success = False
-    should.sass_compile |= success
-
   # The generated css file is an input to the rescript build (via the res_tailwind ppx),
   # so we do that first
   if should.sass_compile:
     if not sass_compile(): success = False
     should.client_build |= success
-
-  if should.client_build:
-    if not client_build(): success = False
-    should.client_test |= success
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.copy_static:
-    if not copy_static(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.copy_fsharp_static:
-    if not copy_fsharp_static(): success = False
-    should.generate_etags |= success
-    should.reload_browser |= success
-
-  if should.generate_etags:
-    if not generate_etags(): success = False
-    should.reload_browser |= success
-    # This should probably cause a restart, but it breaks CI atm
-    # should.reload_server |= success
 
   if should.reload_nginx_server:
     if not reload_nginx_server(): success = False
@@ -470,22 +418,8 @@ def execute(should):
     if not reload_server(): success = False
     should.reload_browser |= success
 
-  if should.reload_fsharp_server:
-    if not reload_fsharp_server(): success = False
-    should.reload_browser |= success
-
-  if should.reload_browser:
-    if not reload_browser(): success = False
-
-  # After the fast path get tests run
-  if should.client_test:
-    if not client_test(): success = False
-
   if should.backend_test:
     if not backend_test(): success = False
-
-  if should.fsharp_backend_test:
-    if not fsharp_backend_test(): success = False
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
