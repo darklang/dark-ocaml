@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:544800e
+      - image: darklang/dark-base:4565f27
 
 commands:
   show-large-files-and-directories:
@@ -144,7 +144,8 @@ commands:
           command: |
             scripts/build/_generate-etags
             cat backend/static/etags.json
-            scripts/linting/_check-etags
+            # dont bother to check them
+            # scripts/linting/_check-etags
             cp backend/static/etags.json rundir/
 
 
@@ -206,33 +207,6 @@ commands:
 # Actual workflow
 ##########################
 jobs:
-  build-client:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - restore_cache:
-          keys:
-            - v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v4-client-{{ checksum "package-lock.json" }}
-            - v4-client
-      - run: scripts/build/compile-project client --test
-      - assert-clean-worktree
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: ["node_modules"]
-          key: v4-client-{{ checksum "package-lock.json" }}-{{ .Branch }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - backend/static/
-      - store_artifacts: { path: rundir }
-      - store_artifacts: { path: backend/static/etags.json }
-      - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
   build-backend:
     executor: in-container
     steps:
@@ -243,6 +217,7 @@ jobs:
             - v9-backend-{{ checksum "esy.json" }}
             - v9-backend
       - show-large-files-and-directories
+      - run: touch backend/static/etags.json
       - run: scripts/build/compile-project --test backend
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
@@ -254,8 +229,6 @@ jobs:
             # Just enough for integration tests and deploy
             - _build/default/backend/bin/server.exe
             - _build/default/backend/bin/garbage_collector_worker.exe
-            - _build/default/backend/bin/legacy_serialization_server.exe
-            - _build/default/backend/bin/legacy_fuzzing_server.exe
       - run:
           name: Reduce size of esy cache
           command: |
@@ -281,101 +254,6 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  # Build server binaries and run tests (but not blazor, which is separated out for build speed)
-  build-fsharp-backend:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      # Set the timestamp to the commit time. This allows timestamp-based build tools
-      # like .NET to use their incremental build feature. Without this, the checkout
-      # time is always newer than the cached object file, and files are always
-      # rebuilt
-      # Currently disabled, as it was causing issues failures within
-      # Serialization.Tests.fs where the allowedTypes for serializers did not match
-      # what tests expected (and what files were persisted in backend/serialization).
-      # TODO: think through an alternative or more nuanced approach.
-      #- run: git restore-mtime
-      - setup-app
-      # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v15-fsharp-backend-{{ checksum "../checksum" }}
-            # Fails often enough that it's better not to have a fallback
-      - show-large-files-and-directories
-      # For tests
-      - run: cp client/static/favicon-32x32.png backend/static/
-      - run: scripts/build/_generate-etags
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
-      # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release fsbinaries.sln /p:DebugType=None /p:DebugSymbols=false
-      - run: scripts/run-fsharp-tests --published
-      - assert-clean-worktree
-      - persist_to_workspace:
-          # Do this before reducing size of cache
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - fsharp-backend/Build/out/ApiServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/BwdServer/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/QueueWorker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/CronChecker/Release/net6.0/linux-x64/publish/
-            - fsharp-backend/Build/out/ExecHost/Release/net6.0/linux-x64/publish/
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - fsharp-backend/Build/obj
-            - /home/dark/.nuget
-          key: v15-fsharp-backend-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  # We build blazor in parallel with server binaries
-  build-fsharp-blazor:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      # Set the timestamp to the commit time. This allows timestamp-based build tools
-      # like .NET to use their incremental build feature. Without this, the checkout
-      # time is always newer than the cached object file, and files are always
-      # rebuilt.
-      - run: git restore-mtime
-      - setup-app
-      # The date is used to get a fresh cache each week
-      - run: shasum fsharp-backend/paket.lock fsharp-backend/global.json <(date +"%U%Y") > ../checksum
-      - restore_cache:
-          keys:
-            - v5-fsharp-blazor-{{ checksum "../checksum" }}
-            # Fails often enough that it's better not to have a fallback
-      - show-large-files-and-directories
-      - run: ./scripts/build/_dotnet-wrapper tool restore
-      - run: ./scripts/build/_dotnet-wrapper paket restore
-      - run: ./scripts/build/_dotnet-wrapper publish -c Release src/Analysis/Analysis.fsproj
-      - run: cp -f fsharp-backend/src/Analysis/static/BlazorWorker.js backend/static/
-      - run: rsync -a fsharp-backend/Build/out/Analysis/Release/net6.0/publish/wwwroot/_framework/ backend/static/blazor/
-      - assert-clean-worktree
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - backend/static/BlazorWorker.js
-            - backend/static/blazor
-      - show-large-files-and-directories
-      - save_cache:
-          paths:
-            - fsharp-backend/Build/obj
-            - /home/dark/.nuget
-          key: v5-fsharp-blazor-{{ checksum "../checksum" }}
-      - store_artifacts: { path: rundir }
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-
-
   static-checks:
     executor: in-container
     steps:
@@ -397,50 +275,6 @@ jobs:
       - run: scripts/deployment/shipit manual diff > /dev/null 2>&1
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
-
-  validate-honeycomb-config:
-    executor: simple-executor
-    steps:
-      - darkcheckout
-      - prep-container-creation
-      - run: bash -c scripts/linting/test-honeycomb-config.sh
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  integration-tests:
-    executor: in-container
-    resource_class: xlarge
-    steps:
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - restore_cache: # get playwright
-          keys:
-            - v2-playwright-{{ checksum "package-lock.json" }}-{{ .Branch }}
-            - v2-playwright-{{ checksum "package-lock.json" }}
-            - v2-playwright
-      - show-large-files-and-directories
-      - run: "cd integration-tests && npm install"
-      - regenerate-etags
-      - run:
-          name: Run integration tests
-          command: |
-            # Run the server first to set up the DB correctly for the prep script
-            scripts/run-fsharp-server --published
-            # Wait for users to be added so prep.sh works
-            ./scripts/devcontainer/_wait-until-apiserver-ready
-            integration-tests/run.sh --concurrency=8 --retry --published
-      - run: integration-tests/_integration-test-results-to-honeycomb.sh
-      - assert-clean-worktree
-      - store_artifacts: { path: rundir }
-      - store_test_results: { path: rundir/test_results }
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: ["integration-tests/node_modules", "/home/dark/.cache/ms-playwright"]
-          key: v2-playwright-{{ checksum "integration-tests/package-lock.json" }}-{{ .Branch }}
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
 
   gcp-containers-test:
     executor: in-container
@@ -467,19 +301,6 @@ jobs:
           root: "."
           paths: ["gcr-image-ids.json"]
       - run: scripts/deployment/shipit containers push
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  push-assets-to-gcp:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - setup-app
-      - auth-with-gcp: { background: true }
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - regenerate-etags
-      - run: scripts/deployment/_push-assets-to-cdn
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -525,41 +346,14 @@ workflows:
           filters:
             branches:
               ignore: /^(pull\/).*$/
-      - validate-honeycomb-config
       - build-backend
-      - build-client
-      - build-fsharp-backend
-      - build-fsharp-blazor
-
-      # expensive tests
-      - integration-tests:
-          requires:
-            - build-backend
-            - build-client
-            - build-fsharp-blazor
-            - build-fsharp-backend
 
       - gcp-containers-test:
-          # This is fully covered by push-assets-to-gcp, so no need to do it twice
           filters:
             branches:
               ignore: main
           requires:
-            - build-client # to rebuild etags
             - build-backend
-            - build-fsharp-backend
-            - build-fsharp-blazor # etags
-
-      # pre-deploy, in parallel with integration-tests
-      - push-assets-to-gcp:
-          filters:
-            branches:
-              only: main
-          requires:
-            - build-backend
-            - build-fsharp-blazor
-            - build-fsharp-backend
-            - build-client
 
       # pre-deploy, in parallel with integration-tests
       - push-containers-to-gcp:
@@ -568,10 +362,6 @@ workflows:
               only: main
           requires:
             - build-backend
-            - build-fsharp-backend
-            # CLEANUP: need this because of etags, should be able to remove it
-            - build-fsharp-blazor
-            - build-client
 
       # actual deploy
       - deploy:
@@ -580,10 +370,7 @@ workflows:
               only: main
           requires:
             - deploy-lock
-            - validate-honeycomb-config
-            - integration-tests
             - push-containers-to-gcp
-            - push-assets-to-gcp
             - static-checks
             - predeployment-checks
 
@@ -598,11 +385,6 @@ workflows:
               ignore: main
           requires:
             - build-backend
-            - build-client
-            - build-fsharp-backend
-            - build-fsharp-blazor
             - gcp-containers-test
-            - integration-tests
             - static-checks
             - predeployment-checks
-            - validate-honeycomb-config
