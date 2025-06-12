@@ -1,10 +1,12 @@
-# Dark
+# Dark-Ocaml
 
-This is the main repo for [Dark](https://darklang.com), a combined language, editor,
+This is a supporting repo for [Darklang-Classic](https://darklang.com/classic), a combined language, editor,
 and infrastructure to make it easy to build backends.
 
-This repo is intended to help Dark users solve their needs by fixing bugs, expanding features, or otherwise contributing. Dark is
-[source available, not open source](https://github.com/darklang/dark/blob/main/LICENSE.md).
+More details around that project may be found at https://github.com/darklang/classic-dark.
+
+This repo represents a small set of functionality that never got ported from
+OCaml to F#. As such, most code here is old and no longer used in any capacity.
 
 See also:
 
